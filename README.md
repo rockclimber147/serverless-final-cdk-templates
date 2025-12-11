@@ -1,6 +1,6 @@
-# Welcome to your CDK TypeScript Project (Final Project)
+# Potential Final Flow Templates
 
-This project contains two AWS CDK stacks defining a serverless backend infrastructure using TypeScript, Python Lambdas, API Gateway, and DynamoDB.
+This project contains two AWS CDK stacks defining a serverless backend infrastructure using TypeScript, Python Lambdas, API Gateway, DynamoDB, and S3.
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
