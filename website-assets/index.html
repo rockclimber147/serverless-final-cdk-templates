@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDK Part 2 Client</title>
+</head>
+<body>
+    <h1>Serverless CRUD Client</h1>
+    <p>This static website is served via CloudFront and S3.</p>
+    <button onclick="createItem()">Create Item</button>
+    <input type="text" id="itemId" placeholder="Item ID to Get">
+    <button onclick="getItem()">Get Item</button>
+    
+    <pre id="output"></pre>
+
+    <script>
+        // *** IMPORTANT: You MUST replace this placeholder with the actual ApiBaseUrl output from the CDK deploy! ***
+        const API_URL = 'https://dwj4ndp1yb.execute-api.us-west-2.amazonaws.com/';
+        const OUTPUT_ELEMENT = document.getElementById('output');
+
+        async function createItem() {
+            OUTPUT_ELEMENT.textContent = 'Creating item...';
+            const data = {
+                name: 'Test Item ' + new Date().toLocaleTimeString(),
+                value: 'Data from static client'
+            };
+
+            const response = await fetch(API_URL + 'items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            OUTPUT_ELEMENT.textContent = JSON.stringify(result, null, 2);
+            document.getElementById('itemId').value = result.id; // Auto-fill for easy test
+        }
+
+        async function getItem() {
+            const id = document.getElementById('itemId').value;
+            if (!id) {
+                OUTPUT_ELEMENT.textContent = 'Please create an item first or enter an ID.';
+                return;
+            }
+
+            OUTPUT_ELEMENT.textContent = `Getting item with ID: ${id}...`;
+
+            const response = await fetch(API_URL + 'items/' + id);
+            const result = await response.json();
+            OUTPUT_ELEMENT.textContent = JSON.stringify(result, null, 2);
+        }
+    </script>
+</body>
+</html>

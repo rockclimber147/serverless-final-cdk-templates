@@ -20,6 +20,7 @@
     "typescript": "~5.9.3"
   },
   "dependencies": {
+    "@aws-cdk/aws-s3-deployment": "^1.203.0",
     "aws-cdk-lib": "^2.215.0",
     "constructs": "^10.0.0"
   }
