@@ -14,85 +14,57 @@ export class FinalStackPart2 extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // 1. Define the DynamoDB Table
-    const itemsTable = new dynamodb.Table(this, 'ItemsTable', {
-        partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        removalPolicy: cdk.RemovalPolicy.DESTROY, 
-    });
-
-    // 2. Define the Python Lambda Function
-    const itemsHandler = new lambda.Function(this, 'ItemsHandler', {
-        runtime: lambda.Runtime.PYTHON_3_12,
-        handler: 'handler.main',
-        code: lambda.Code.fromAsset('lib/lambdas/part2'),
-        environment: {
-            ITEMS_TABLE_NAME: itemsTable.tableName, 
-        },
-    });
-
-    // 3. Grant the Lambda Read/Write permissions
-    itemsTable.grantReadWriteData(itemsHandler);
-
-    // 4. Define the API Gateway (HTTP API)
-    const httpApi = new apigw.HttpApi(this, 'DataApi', {
-        apiName: 'Part2DataApi',
-        
-        // --- PERMISSIVE CORS CONFIGURATION FOR TESTING ---
-        corsPreflight: {
-            allowOrigins: ['*'], // Allows ANY origin (your S3 site, localhost, etc.)
-            allowMethods: [apigw.CorsHttpMethod.GET, apigw.CorsHttpMethod.POST, apigw.CorsHttpMethod.OPTIONS],
-            allowHeaders: ['*'], // Allows all headers
-            maxAge: cdk.Duration.days(1),
-        },
-        // --- END PERMISSIVE CONFIGURATION ---
-    });
-
-    // 5. Define the Lambda Integration & Routes
-    const lambdaIntegration = new integrations.HttpLambdaIntegration(
-        'ItemsLambdaIntegration',
-        itemsHandler
-    );
-    
-    httpApi.addRoutes({ path: '/items', methods: [apigw.HttpMethod.POST], integration: lambdaIntegration });
-    httpApi.addRoutes({ path: '/items/{id}', methods: [apigw.HttpMethod.GET], integration: lambdaIntegration });
-
-
-    // --- S3 STATIC WEBSITE HOSTING ---
-
-    // 6. Define the S3 Bucket for Static Website Hosting
-    const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
-      websiteIndexDocument: 'index.html', // <--- Enables S3 Static Hosting
-      publicReadAccess: true,             // <--- Grants public read access
+    // --- 1. S3 Bucket & Deployment ---
+    const websiteBucket = new s3.Bucket(this, 'HtmlBucket', {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
-      
-      // We must explicitly configure blockPublicAccess to allow public policies
-      blockPublicAccess: new s3.BlockPublicAccess({
-        blockPublicAcls: false,
-        blockPublicPolicy: false,
-        ignorePublicAcls: false,
-        restrictPublicBuckets: false,
-      }),
-    });
-    
-    // 7. Deploy the Website Content to S3
-    // Assumes 'website-assets' folder exists in your project root with index.html
-    new s3deploy.BucketDeployment(this, 'WebsiteDeploy', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '..', 'website-assets'))],
-      destinationBucket: websiteBucket,
     });
 
-    // 8. Output the S3 Website URL
-    new cdk.CfnOutput(this, 'WebsiteUrl', {
-      value: websiteBucket.bucketWebsiteUrl, // <--- Use the S3 website endpoint URL
-      description: 'The S3 Static Website URL.',
+    new s3deploy.BucketDeployment(this, 'HtmlDeploy', {
+      // Corrected Path: Go up one level (..) to 'root/lib/', then into 'part2'
+      sources: [s3deploy.Source.asset(path.join(__dirname, 'part2'))],
+      destinationBucket: websiteBucket,
+      destinationKeyPrefix: 'web/',
     });
-    
-    // 9. Output the API Gateway URL for use in the static website code
-    new cdk.CfnOutput(this, 'ApiBaseUrl', {
-        value: httpApi.url!,
-        description: 'The base URL for the Part 2 API to be used in fetch calls.',
+
+    // --- 2. Lambda Function to Read S3 ---
+    const htmlServerLambda = new lambda.Function(this, 'HtmlServerLambda', {
+      // ⬇️ CHANGE: Use Python Runtime ⬇️
+      runtime: lambda.Runtime.PYTHON_3_12,
+      // ⬇️ CHANGE: Use handler.main (assuming file is handler.py) ⬇️
+      handler: 'handler.main',
+      // CHANGE: Code path must point to where your Python file is located (e.g., 'lib/lambdas/part2')
+      code: lambda.Code.fromAsset('lib/lambdas/part2'),
+      environment: {
+        BUCKET_NAME: websiteBucket.bucketName,
+      },
+    });
+
+    // Grant Lambda Read permission to the S3 bucket
+    websiteBucket.grantRead(htmlServerLambda);
+
+    // --- 3. API Gateway (HTTP API) ---
+    const httpApi = new apigw.HttpApi(this, 'StaticHtmlApi', {
+      apiName: 'StaticHtmlApi',
+    });
+
+    // Define the Lambda integration
+    const lambdaIntegration = new integrations.HttpLambdaIntegration(
+      'HtmlServerIntegration',
+      htmlServerLambda
+    );
+
+    // Set up the root path (GET /) to trigger the Lambda
+    httpApi.addRoutes({
+      path: '/',
+      methods: [apigw.HttpMethod.GET],
+      integration: lambdaIntegration
+    });
+
+    // --- 4. Outputs ---
+    new cdk.CfnOutput(this, 'WebPageUrl', {
+      value: httpApi.url!,
+      description: 'API Gateway Endpoint to view the static page.',
     });
   }
 }
