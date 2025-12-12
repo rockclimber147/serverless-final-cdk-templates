@@ -8,14 +8,42 @@
 <body>
     <h1>COMP 4968 Final Task #2</h1>
     <hr>
-    <p>Today's Date: <span id="currentDate"></span></p>
-    <p>Last 3 Digits of A#: **997**</p>
-    <p>Course: **COMP 4968 final**</p>
-    <p>Daylen Smith**</p>
+    <p>Today's Date: <span id="currentDate">Loading date from server...</span></p>
+    <p>Last 3 Digits of A#: 997</p>
+    <p>Course: COMP 4968 final</p>
+    <p>Daylen Smith</p>
 
     <script>
-        // JavaScript to display the current date dynamically
-        document.getElementById('currentDate').textContent = new Date().toLocaleDateString();
+        // Placeholder for the Date API URL.
+        // REPLACE THIS STRING with the actual 'DateApiUrl' output from your CDK deployment.
+        const DATE_API_URL = 'https://y6uas82xsa.execute-api.us-west-2.amazonaws.com/date';
+
+        /**
+         * Fetches the current date from the dedicated AWS Lambda API 
+         * and updates the span element.
+         */
+        async function fetchAndDisplayDate() {
+            try {
+                // Fetch the JSON object from the date Lambda
+                const response = await fetch(DATE_API_URL);
+                const data = await response.json();
+
+                if (response.ok && data.currentDate) {
+                    // Update the span with the date returned by the server
+                    document.getElementById('currentDate').textContent = data.currentDate;
+                } else {
+                    console.error("API returned an error or missing data:", data);
+                    document.getElementById('currentDate').textContent = "Error loading date (API issue)";
+                }
+
+            } catch (error) {
+                console.error("Fetch failed:", error);
+                document.getElementById('currentDate').textContent = "Error loading date (Network issue)";
+            }
+        }
+
+        // Execute the function when the page loads
+        fetchAndDisplayDate();
     </script>
 </body>
 
